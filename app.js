@@ -6,23 +6,28 @@ var app = express()
 
 app.use(express.logger())
 
+function getJSON(url, onSuccess, onError) {
+    try {
+        https.get(url, function(response) {
+            var data = ""
+            response.on("data", function(chunk) { data += chunk })
+            response.on("end",  function()      { onSuccess(response.statusCode, JSON.parse(data)) })
+        }).on("error", function(err) { onError(err); })
+    } catch (err) {
+        onError(err)
+    }
+}
+
 /**
  * Query interface
  *
  * Find stations matching the query
  */
 app.get("/search/:query", function(request, response) {
-    https.get("https://api.vasttrafik.se/bin/rest.exe/v1/location.name?authKey=" + u(config.vasttrafik.apiKey) + "&format=json&input=" + u(request.params.query), function(targetResponse) {
-
-        var data = ""
-
-        targetResponse.on("data", function(chunk) {
-            data += chunk
-        })
-
-        targetResponse.on("end", function() {
-            var result = JSON.parse(data),
-                output = ""
+    getJSON(
+        "https://api.vasttrafik.se/bin/rest.exe/v1/location.name?authKey=" + u(config.vasttrafik.apiKey) + "&format=json&input=" + u(request.params.query),
+        function(status, result) {
+            var output = ""
 
             if (result && result.LocationList && result.LocationList.StopLocation) {
                 result.LocationList.StopLocation.forEach(function(stop) {
@@ -30,11 +35,38 @@ app.get("/search/:query", function(request, response) {
                 })
             }
 
-            response.send(targetResponse.statusCode, output);
-        })
-    }).on("error", function(err) {
-        response.send(500, err);
-    });
+            response.send(status, output);
+        },
+        function(err) {
+            console.log(err)
+            response.send(500, err.toString())
+        }
+    )
+})
+
+/**
+ * Next ride interface
+ */
+app.get("/next/:station/:direction", function(request, response) {
+    var p = request.params
+    getJSON(
+        "https://api.vasttrafik.se/bin/rest.exe/v1/departureBoard?authKey=" + u(config.vasttrafik.apiKey) + "&format=json&id=" + u(p.station) + "&direction=" + u(p.direction),
+        function(status, result) {
+            var output = ""
+
+            if (result && result.DepartureBoard && result.DepartureBoard.Departure) {
+                result.DepartureBoard.Departure.forEach(function(departure) {
+                    output += departure.name + "\t" + departure.rtTime + "\n"
+                })
+            }
+
+            response.send(status, output)
+        },
+        function(err) {
+            console.log(err)
+            response.send(500, err.toString())
+        }
+    )
 })
 
 // Run server
