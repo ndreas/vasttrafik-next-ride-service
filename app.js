@@ -52,11 +52,13 @@ app.get("/next/:station/:direction/:filter", function(request, response) {
     getJSON(
         "https://api.vasttrafik.se/bin/rest.exe/v1/departureBoard?authKey=" + u(config.vasttrafik.apiKey) + "&format=json&id=" + u(p.station) + "&direction=" + u(p.direction),
         function(status, result) {
-            var output = ""
+            var output = "",
+                done = []
 
             if (result && result.DepartureBoard && result.DepartureBoard.Departure) {
                 result.DepartureBoard.Departure.forEach(function(departure) {
-                    if (departure.name.match(p.filter)) {
+                    if (departure.name.match(p.filter) && done.indexOf(departure.name) < 0) {
+                        done.push(departure.name)
                         output += departure.name + "\t" + departure.rtTime + " (" + departure.time + ")\n"
                     }
                 })
