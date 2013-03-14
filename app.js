@@ -47,7 +47,7 @@ app.get("/search/:query", function(request, response) {
 /**
  * Next ride interface
  */
-app.get("/next/:station/:direction", function(request, response) {
+app.get("/next/:station/:direction/:filter", function(request, response) {
     var p = request.params
     getJSON(
         "https://api.vasttrafik.se/bin/rest.exe/v1/departureBoard?authKey=" + u(config.vasttrafik.apiKey) + "&format=json&id=" + u(p.station) + "&direction=" + u(p.direction),
@@ -56,7 +56,9 @@ app.get("/next/:station/:direction", function(request, response) {
 
             if (result && result.DepartureBoard && result.DepartureBoard.Departure) {
                 result.DepartureBoard.Departure.forEach(function(departure) {
-                    output += departure.name + "\t" + departure.rtTime + "\n"
+                    if (departure.name.match(p.filter)) {
+                        output += departure.name + "\t" + departure.rtTime + " (" + departure.time + ")\n"
+                    }
                 })
             }
 
