@@ -6,13 +6,25 @@ var app = express()
 
 app.use(express.logger())
 
+/**
+ * String interpolation
+ */
+String.prototype.supplant = function (o) {
+    return this.replace(/{([^{}]*)}/g,
+        function (a, b) {
+            var r = o[b]
+            return typeof r === 'string' || typeof r === 'number' ? r : a
+        }
+    )
+}
+
 function getJSON(url, onSuccess, onError) {
     try {
         https.get(url, function(response) {
             var data = ""
             response.on("data", function(chunk) { data += chunk })
             response.on("end",  function()      { onSuccess(response.statusCode, JSON.parse(data)) })
-        }).on("error", function(err) { onError(err); })
+        }).on("error", function(err) { onError(err) })
     } catch (err) {
         onError(err)
     }
@@ -31,11 +43,11 @@ app.get("/search/:query", function(request, response) {
 
             if (result && result.LocationList && result.LocationList.StopLocation) {
                 result.LocationList.StopLocation.forEach(function(stop) {
-                    output += stop.name + "\t\t" + stop.id + "\n"
+                    output += config.formats.searchLocation.supplant(stop)
                 })
             }
 
-            response.send(status, output);
+            response.send(status, output)
         },
         function(err) {
             console.log(err)
@@ -56,10 +68,22 @@ app.get("/next/:station/:direction/:filter", function(request, response) {
                 done = []
 
             if (result && result.DepartureBoard && result.DepartureBoard.Departure) {
+                var currentTime = new Date()
+
                 result.DepartureBoard.Departure.forEach(function(departure) {
                     if (departure.name.match(p.filter) && done.indexOf(departure.name) < 0) {
                         done.push(departure.name)
-                        output += departure.name + "\t" + departure.rtTime + " (" + departure.time + ")\n"
+
+                        var departureTime = new Date(currentTime),
+                            t = departure.rtTime ? departure.rtTime : departure.time,
+                            parts = t.split(":").map(function(i) { return parseInt(i.replace(/^0([0-9])$/, "$1")) })
+
+                        departureTime.setHours(parts[0])
+                        departureTime.setMinutes(parts[1])
+
+                        departure.minutes = (departureTime - currentTime) / (1000*60)
+
+                        output += config.formats.nextRide.supplant(departure)
                     }
                 })
             }

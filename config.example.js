@@ -9,4 +9,9 @@ config.vasttrafik = {}
 // API key
 config.vasttrafik.apiKey = YOUR_KEY_HERE
 
+// Output formats
+config.formats = {}
+config.formats.searchLocation = "{id} {name}\n"
+config.formats.nextRide = "{name} leaves in {minutes} minutes.\n"
+
 module.exports = config
